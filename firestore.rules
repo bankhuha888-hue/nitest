@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function admin() {
+      return signedIn()
+        && request.auth.token.email == 'bankhuha888@gmail.com';
+    }
+    function teacher() {
+      return signedIn()
+        && profile().role in ['teacher', 'teacher_supervisor']
+        && profile().status == 'active';
+    }
+    function supervisor() {
+      return signedIn()
+        && profile().role in ['supervisor', 'teacher_supervisor']
+        && profile().status == 'active';
+    }
+    function evaluator() { return supervisor() || admin(); }
+
+    match /users/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role in ['teacher', 'supervisor', 'teacher_supervisor']
+        && request.resource.data.status == 'pending';
+      allow read: if signedIn() && (request.auth.uid == uid || evaluator());
+      allow update: if admin() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status);
+    }
+
+    match /supervisions/{cardId} {
+      allow create: if signedIn()
+        && request.resource.data.teacherId == request.auth.uid
+        && teacher()
+        && request.resource.data.status in ['draft', 'waiting_for_evaluation'];
+      allow read: if signedIn() && (resource.data.teacherId == request.auth.uid || evaluator());
+      allow update: if signedIn() && (
+        (resource.data.teacherId == request.auth.uid && profile().status == 'active'
+          && resource.data.status in ['draft', 'waiting_for_evaluation']
+          && request.resource.data.teacherId == resource.data.teacherId
+          && request.resource.data.status in ['draft', 'waiting_for_evaluation']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'subject', 'period', 'teachingDate', 'classroom', 'status', 'lessonPlan', 'updatedAt'
+          ]))
+        || (resource.data.teacherId == request.auth.uid
+          && teacher()
+          && request.resource.data.deletionRequest.status == 'pending'
+          && request.resource.data.deletionRequest.requestedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'deletionRequest', 'updatedAt'
+          ]))
+        || (evaluator()
+          && request.resource.data.status in ['evaluating', 'completed']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'evaluations', 'updatedAt'
+          ])
+          && request.resource.data.get('evaluations', {})
+            .diff(resource.data.get('evaluations', {})).affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.evaluations[request.auth.uid].evaluatorId == request.auth.uid)
+        || (admin()
+          && request.resource.data.deletionRequest.status == 'rejected'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'deletionRequest', 'updatedAt'
+          ]))
+      );
+      allow delete: if admin()
+        && resource.data.deletionRequest.status == 'pending';
+    }
+
+    match /planComments/{commentId} {
+      allow read: if signedIn()
+        && (resource.data.teacherId == request.auth.uid || evaluator());
+      allow create: if evaluator()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && get(/databases/$(database)/documents/supervisions/$(request.resource.data.cardId)).data.teacherId
+          == request.resource.data.teacherId;
+    }
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.firebase/
+tmp/
+google-apps-script/
+.env
+.env.local
+*.log
