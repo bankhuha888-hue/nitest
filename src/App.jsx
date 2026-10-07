@@ -233,7 +233,9 @@ function App() {
 
   const handleDeleteCard = async (card) => {
     const isAdminApproval = user.role === 'admin';
-    const confirmed = window.confirm(isAdminApproval
+    const confirmed = window.confirm(!firebaseReady
+      ? `ลบการ์ด “${card.subject}” ของ ${card.teacherName}?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนการ์ดและผลประเมินได้`
+      : isAdminApproval
       ? `อนุมัติให้ลบการ์ด “${card.subject}” ของ ${card.teacherName}?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนการ์ดและผลประเมินได้`
       : `ส่งคำขอลบการ์ด “${card.subject}” ให้แอดมินอนุมัติ?`);
     if (!confirmed) return;
@@ -244,12 +246,7 @@ function App() {
         if (isAdminApproval) await deleteSupervisionCard(card.id);
         else await requestSupervisionCardDeletion(card.id, user);
       } else {
-        setCards((current) => isAdminApproval
-          ? current.filter((item) => item.id !== card.id)
-          : current.map((item) => item.id === card.id ? {
-              ...item,
-              deletionRequest: { status: 'pending', requestedBy: user.uid, requestedByName: `${user.firstName} ${user.lastName}` },
-            } : item));
+        setCards((current) => current.filter((item) => item.id !== card.id));
       }
       if (isAdminApproval && dialog?.card?.id === card.id) setDialog(null);
     } catch (error) {
@@ -364,7 +361,7 @@ function RegisterPage({ onRegistered, onLogin }) {
     setLoading(true);
     try {
       if (firebaseReady) onRegistered(await registerUser(values));
-      else onRegistered({ uid: `demo-${Date.now()}`, ...values, status: 'pending' });
+      else onRegistered({ uid: `demo-${Date.now()}`, ...values, status: 'active' });
     } catch (err) { setError(errorText(err)); }
     finally { setLoading(false); }
   };
@@ -382,7 +379,7 @@ function RegisterPage({ onRegistered, onLogin }) {
           <Field label="รหัสผ่าน"><input type="password" required minLength={6} value={values.password} onChange={change('password')} /></Field>
           <Field label="ยืนยันรหัสผ่าน"><input type="password" required minLength={6} value={values.confirm} onChange={change('confirm')} /></Field>
         </div>
-        <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">บัญชีใหม่ต้องรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</p>
+        <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">สมัครแล้วเข้าใช้งานได้ทันที โดยไม่ต้องรอผู้ดูแลระบบอนุมัติ</p>
         {error && <ErrorBox>{error}</ErrorBox>}
         <button disabled={loading} className="primary-button w-full">{loading ? 'กำลังสร้างบัญชี...' : 'สมัครสมาชิก'}</button>
       </form>
@@ -767,7 +764,7 @@ function AuthShell({ title, subtitle, children }) { return <main className="flex
 function Logo({ large }) { return <span className={`inline-flex items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-200 ${large ? 'h-16 w-16' : 'h-11 w-11'}`}><ClipboardCheck size={large ? 32 : 23} /></span>; }
 function Field({ label, children }) { return <label className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span>{children}</label>; }
 function ErrorBox({ children }) { return <p className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{children}</p>; }
-function DemoNotice() { return <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800"><strong>โหมดตัวอย่าง:</strong> ใช้ Gmail ใดก็ได้เพื่อเข้าฝั่งครู หรือใช้อีเมลที่ขึ้นต้นด้วย supervisor เพื่อเข้าฝั่งผู้นิเทศ</div>; }
+function DemoNotice() { return <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800"><strong>โหมดใช้งานฟรี:</strong> สมัครแล้วเข้าใช้ได้ทันที หรือใช้ชื่อผู้ใช้ใดก็ได้เพื่อเข้าฝั่งครู และใช้ชื่อที่ขึ้นต้นด้วย supervisor เพื่อเข้าฝั่งผู้นิเทศ ข้อมูลจะไม่ถูกส่งไปยัง Firebase</div>; }
 function StatusBadge({ status }) {
   const styles = status === 'completed' ? 'bg-emerald-100 text-emerald-700' : status === 'evaluating' ? 'bg-indigo-100 text-indigo-700' : status === 'draft' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-700';
   const label = status === 'completed' ? 'ประเมินแล้ว' : status === 'evaluating' ? 'กำลังประเมิน' : status === 'draft' ? 'ยังไม่แนบแผน' : 'รอประเมิน';

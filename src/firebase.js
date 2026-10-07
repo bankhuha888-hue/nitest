@@ -30,7 +30,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const firebaseReady = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+// GitHub Pages edition: keep Firebase disabled so the site never makes
+// billable Firebase requests, even if old VITE_FIREBASE_* values remain locally.
+export const firebaseReady = false;
 const driveUploadUrl = import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL;
 const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
