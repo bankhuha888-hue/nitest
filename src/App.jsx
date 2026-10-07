@@ -39,7 +39,7 @@ import {
 import EvaluationForm, { evaluationItems } from './EvaluationForm';
 
 const demoTeacher = {
-  uid: 'demo-teacher', email: 'teacher@gmail.com', firstName: 'สมชาย', lastName: 'ใจดี',
+  uid: 'demo-teacher', email: 'local@demo', firstName: 'ผู้ใช้งาน', lastName: 'ระบบ',
   subject: 'คณิตศาสตร์', role: 'teacher', status: 'active',
 };
 const demoSupervisor = {
@@ -115,7 +115,7 @@ const errorText = (error) => {
 
 function App() {
   const [authPage, setAuthPage] = useState('login');
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(firebaseReady ? null : demoTeacher);
   const [authLoading, setAuthLoading] = useState(firebaseReady);
   const [cards, setCards] = useState(initialDemoCards);
   const [editingCard, setEditingCard] = useState(null);
@@ -149,7 +149,7 @@ function App() {
 
   const handleLogout = async () => {
     if (firebaseReady) await logoutUser();
-    setUser(null);
+    setUser(firebaseReady ? null : demoTeacher);
   };
 
   if (authLoading) return <FullPageMessage text="กำลังตรวจสอบบัญชีผู้ใช้..." />;
